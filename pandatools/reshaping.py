@@ -9,10 +9,30 @@
 # --------------- Imports --------------- #
 # External
 import pandas as pd
+import numpy as np
+import multiprocessing as mp
+from functools import partial
 
 
 # Unique index creation
 def unique_index(df: pd.DataFrame, index_name: str, columns: list,
+                 sep: str = '_', date_format: str = '%Y-%m-%d %H:%M:%S', parallelize: bool = True) -> pd.DataFrame:
+
+    if parallelize:
+        n = mp.cpu_count()-1
+        df_split = np.array_split(df, n)
+        pool = mp.Pool(n)
+        df = pd.concat(pool.map(partial(_unique_index, df=df_split, index_name=index_name,
+                                        columns=columns, sep=sep, date_format=date_format)))
+        pool.close()
+        pool.join()
+        return df
+    else:
+        return _unique_index(df, index_name, columns, sep=sep, date_format=date_format)
+
+
+# Internal implementation of unique_index
+def _unique_index(df: pd.DataFrame, index_name: str, columns: list,
                  sep: str = '_', date_format: str = '%Y-%m-%d %H:%M:%S') -> pd.DataFrame:
 
     # Check datatypes of different columns and transform to string if necessary
@@ -40,7 +60,25 @@ def unique_index(df: pd.DataFrame, index_name: str, columns: list,
 
 # Separate merged index into custom columns
 def separate_index(df: pd.DataFrame, index_name: str, columns: list,
-                   sep: str = '_', drop_index: bool = False) -> pd.DataFrame:
+                   sep: str = '_', drop_index: bool = False, parallelize: bool = True) -> pd.DataFrame:
+
+    if parallelize:
+        n = mp.cpu_count()-1
+        df_split = np.array_split(df, n)
+        pool = mp.Pool(n)
+        df = pd.concat(pool.map(partial(_separate_index, df=df_split, index_name=index_name, columns=columns,
+                                        sep=sep, drop_index=drop_index)))
+        pool.close()
+        pool.join()
+        return df
+    else:
+        return _separate_index(df, index_name, columns, sep=sep, drop_index=drop_index)
+
+
+# Internal implementation of separate_index
+def _separate_index(df: pd.DataFrame, index_name: str, columns: list,
+                    sep: str = '_', drop_index: bool = False) -> pd.DataFrame:
+
     # Check if multiple columns are passed in
     assert len(columns) > 1, "Only one column name has been passed in, minimum 2 column names required."
 
